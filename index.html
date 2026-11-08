@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>PDF Editor</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header id="topbar">
+  <button id="btnOpen" class="btn primary">📂 Open</button>
+  <span id="docName">No file open</span>
+  <button id="btnUndo" class="btn icon" title="Undo" disabled>↶</button>
+  <button id="btnMenu" class="btn icon" title="More">⋮</button>
+</header>
+
+<div id="pageInfo" hidden>
+  <button id="zoomOut" class="btn icon">−</button>
+  <span id="pageNum">1 / 1</span>
+  <button id="zoomIn" class="btn icon">+</button>
+</div>
+
+<main id="viewer">
+  <div id="welcome">
+    <h1>PDF Editor</h1>
+    <p>Open a PDF to read, mark up, fill, and sign it. Everything stays on your phone.</p>
+    <button class="btn primary big" data-act="open">📂 Open a PDF</button>
+    <button class="btn big" data-act="create">➕ Create a PDF</button>
+  </div>
+  <div id="pages"></div>
+</main>
+
+<nav id="tools" hidden>
+  <button class="tool active" data-tool="hand">✋<span>Move</span></button>
+  <button class="tool" data-tool="select">👆<span>Select</span></button>
+  <button class="tool" data-tool="highlight">🖍️<span>Highlight</span></button>
+  <button class="tool" data-tool="pen">✏️<span>Draw</span></button>
+  <button class="tool" data-tool="note">💬<span>Comment</span></button>
+  <button class="tool" data-tool="text">🔤<span>Text</span></button>
+  <button class="tool" data-tool="sign">✍️<span>Sign</span></button>
+  <button class="tool" data-tool="edittext">📝<span>Edit text</span></button>
+  <button class="tool" data-tool="image">🖼️<span>Image</span></button>
+  <button class="tool" data-tool="whiteout">⬜<span>Erase area</span></button>
+</nav>
+
+<!-- Menu sheet -->
+<div id="menu" class="sheet" hidden>
+  <div class="sheet-body">
+    <button class="btn row" data-act="save">💾 Save PDF to phone</button>
+    <button class="btn row" data-act="share">📤 Share PDF</button>
+    <button class="btn row" data-act="reader">📖 Mobile reading mode</button>
+    <button class="btn row" data-act="forms">📋 Fill form fields</button>
+    <button class="btn row" data-act="ocr">🔍 OCR this page (scan → text)</button>
+    <button class="btn row" data-act="create">➕ Create a new PDF</button>
+    <button class="btn row" data-act="close">✖ Close menu</button>
+  </div>
+</div>
+
+<!-- Generic sheet (filled by JS) -->
+<div id="sheet" class="sheet" hidden><div class="sheet-body" id="sheetBody"></div></div>
+
+<!-- Reader mode -->
+<div id="reader" hidden>
+  <div id="readerBar">
+    <button class="btn" id="readerClose">✖ Close</button>
+    <button class="btn icon" id="readerSmaller">A−</button>
+    <button class="btn icon" id="readerBigger">A+</button>
+  </div>
+  <article id="readerText"></article>
+</div>
+
+<div id="toast" hidden></div>
+<div id="busy" hidden><div class="spinner"></div><p id="busyText">Working…</p></div>
+
+<input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
+<input type="file" id="fileImg" accept="image/*" hidden>
+<input type="file" id="filePhotos" accept="image/*" multiple hidden>
+
+<script src="vendor/pdf-lib.min.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
