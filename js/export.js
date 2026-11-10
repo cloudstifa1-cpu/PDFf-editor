@@ -17,9 +17,18 @@ function safeText(font, str, cache) {
   return out;
 }
 
+/** Opens a PDF for editing; unlocks it with the password if it's locked. */
+export async function openLib(bytes, password) {
+  try { return await PDFLib.PDFDocument.load(bytes); }
+  catch (e) {
+    if (!/encrypt/i.test(e.message || '')) throw e;
+    return await PDFLib.PDFDocument.load(bytes, { password: password || '' });
+  }
+}
+
 export async function buildPdf(S) {
   const { PDFDocument, StandardFonts, BlendMode, LineCapStyle, PDFHexString, PDFString, degrees } = PDFLib;
-  const doc = await PDFDocument.load(S.bytes, { ignoreEncryption: true });
+  const doc = await openLib(S.bytes, S.password);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const pages = doc.getPages();
   const cache = new Map();

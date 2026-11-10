@@ -42,13 +42,7 @@ async function fromPhotos(files) {
   try {
     for (let i = 0; i < files.length; i++) {
       busy(`Adding photo ${i + 1} of ${files.length}…`);
-      const im = await loadImageFile(files[i], 2000, 'image/jpeg');   // shrink: saves memory and file size
-      const img = await doc.embedJpg(dataUrlToBytes(im.dataUrl));
-      // Fit the photo on a Letter-sized page, turned to match the photo's shape
-      const [W, H] = im.w > im.h ? [792, 612] : [612, 792];
-      const k = Math.min(W / im.w, H / im.h);
-      const page = doc.addPage([W, H]);
-      page.drawImage(img, { x: (W - im.w * k) / 2, y: (H - im.h * k) / 2, width: im.w * k, height: im.h * k });
+      await addImagePage(doc, files[i]);
     }
     busy(false);
     await loadBytes(await doc.save(), 'Scan.pdf');
@@ -58,4 +52,14 @@ async function fromPhotos(files) {
     busy(false); console.error(e);
     toast('Could not make PDF: ' + (e.message || e), 4000);
   }
+}
+
+/** Adds a photo as a new page, fitted to a Letter page turned to match the photo's shape. */
+export async function addImagePage(doc, file) {
+  const im = await loadImageFile(file, 2000, 'image/jpeg');   // shrink: saves memory and file size
+  const img = await doc.embedJpg(dataUrlToBytes(im.dataUrl));
+  const [W, H] = im.w > im.h ? [792, 612] : [612, 792];
+  const k = Math.min(W / im.w, H / im.h);
+  const page = doc.addPage([W, H]);
+  page.drawImage(img, { x: (W - im.w * k) / 2, y: (H - im.h * k) / 2, width: im.w * k, height: im.h * k });
 }

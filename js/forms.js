@@ -1,13 +1,13 @@
 // Fill fillable PDF form fields (text boxes, checkboxes, dropdowns, radio buttons).
 import { S, loadBytes } from './app.js';
+import { openLib } from './export.js';
 import { $, openSheet, closeSheet, esc, toast, busy } from './ui.js';
 
 export async function openForms() {
-  if (S.encrypted) return toast('Locked PDFs can be filled after Build 2 adds password support.', 3500);
   busy('Reading form…');
   let doc, fields;
   try {
-    doc = await PDFLib.PDFDocument.load(S.bytes, { ignoreEncryption: true });
+    doc = await openLib(S.bytes, S.password);
     fields = doc.getForm().getFields();
   } catch (e) { busy(false); return toast('Could not read the form: ' + e.message, 4000); }
   busy(false);

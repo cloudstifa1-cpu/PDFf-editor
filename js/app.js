@@ -37,15 +37,15 @@ export async function loadBytes(bytes, name, { keepAnnots = false } = {}) {
   busy('Opening…');
   try {
     if (S.pdf) { S.pages.forEach(unrender); await S.pdf.destroy(); }
-    let encrypted = false;
+    let encrypted = false, pw = null;
     const task = pdfjsLib.getDocument({ data: bytes.slice(0) });
     task.onPassword = (cb, reason) => {
       encrypted = true;
       const p = prompt(reason === 2 ? 'Wrong password. Try again:' : 'This PDF is locked. Password:');
-      if (p === null) task.destroy(); else cb(p);
+      if (p === null) task.destroy(); else { pw = p; cb(p); }
     };
     S.pdf = await task.promise;
-    S.bytes = bytes; S.name = name; S.encrypted = encrypted;
+    S.bytes = bytes; S.name = name; S.encrypted = encrypted; S.password = pw;
     if (!keepAnnots) { S.annots = []; S.ocr = {}; S.undo = []; S.dirty = false; }
     S.selected = null;
     $('#docName').textContent = name;
@@ -72,7 +72,7 @@ export async function loadBytes(bytes, name, { keepAnnots = false } = {}) {
     layout();
     viewer.scrollTop = 0;
     updateUndo();
-    if (encrypted) toast('Locked PDF opened. Saving locked PDFs comes in Build 2.', 4000);
+    if (encrypted) toast('Locked PDF opened. Saved copies will be unlocked — use 🔒 Password to lock again.', 4500);
   } catch (e) {
     console.error(e);
     toast(e?.name === 'InvalidPDFException' ? 'That file is not a valid PDF.' : 'Could not open: ' + (e.message || e), 4000);
@@ -482,7 +482,6 @@ const outName = () => S.name.replace(/\.pdf$/i, '') + (S.dirty ? '-edited' : '')
 
 async function getOutput() {
   if (!S.pdf) { toast('Open a PDF first.'); return null; }
-  if (S.encrypted) { toast('Saving locked PDFs comes in Build 2.', 3500); return null; }
   busy('Building PDF…');
   try { return await buildPdf(S); }
   catch (e) { console.error(e); toast('Save failed: ' + (e.message || e), 5000); return null; }
@@ -504,6 +503,18 @@ async function share() {
   } else { downloadBytes(bytes, file.name); toast('Sharing not supported here — saved to Downloads instead.', 3500); }
 }
 
+const need = () => S.pdf ? true : (toast('Open a PDF first.'), false);
+async function lazy(file, fn) {
+  try { (await import(file))[fn](); }
+  catch (e) { console.error(e); toast('Could not start that tool: ' + (e.message || e), 4000); }
+}
+
+/** Locks marks onto the pages before tools that rebuild the file. Returns false if user cancels. */
+export function confirmBake() {
+  return !S.annots.length && !Object.keys(S.ocr).length ? true
+    : confirm('Your marks will be locked onto the pages (they can no longer be moved or edited). Continue?');
+}
+
 const ACTIONS = {
   open: () => { $('#filePdf').value = ''; $('#filePdf').click(); },
   save, share,
@@ -511,6 +522,11 @@ const ACTIONS = {
   forms: () => S.pdf ? openForms() : toast('Open a PDF first.'),
   ocr: () => S.pdf ? openOcr(S.current || 1) : toast('Open a PDF first.'),
   create: () => openCreate(),
+  organize: () => need() && lazy('./pages.js', 'openOrganize'),
+  combine: () => lazy('./pages.js', 'openCombine'),
+  convert: () => need() && lazy('./convert.js', 'openConvert'),
+  compress: () => need() && lazy('./compress.js', 'openCompress'),
+  protect: () => need() && lazy('./compress.js', 'openProtect'),
   close: () => {},
 };
 document.addEventListener('click', e => {

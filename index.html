@@ -29,6 +29,7 @@
     <p>Open a PDF to read, mark up, fill, and sign it. Everything stays on your phone.</p>
     <button class="btn primary big" data-act="open">📂 Open a PDF</button>
     <button class="btn big" data-act="create">➕ Create a PDF</button>
+    <button class="btn big" data-act="combine">🧩 Combine files</button>
   </div>
   <div id="pages"></div>
 </main>
@@ -54,6 +55,11 @@
     <button class="btn row" data-act="reader">📖 Mobile reading mode</button>
     <button class="btn row" data-act="forms">📋 Fill form fields</button>
     <button class="btn row" data-act="ocr">🔍 OCR this page (scan → text)</button>
+    <button class="btn row" data-act="organize">📑 Organize pages (move, turn, delete)</button>
+    <button class="btn row" data-act="combine">🧩 Combine files</button>
+    <button class="btn row" data-act="convert">🔄 Export to Word, Excel, PowerPoint, images</button>
+    <button class="btn row" data-act="compress">🗜️ Compress (make smaller)</button>
+    <button class="btn row" data-act="protect">🔒 Password protect</button>
     <button class="btn row" data-act="create">➕ Create a new PDF</button>
     <button class="btn row" data-act="close">✖ Close menu</button>
   </div>
@@ -78,6 +84,7 @@
 <input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
 <input type="file" id="fileImg" accept="image/*" hidden>
 <input type="file" id="filePhotos" accept="image/*" multiple hidden>
+<input type="file" id="fileMany" accept="application/pdf,.pdf,image/*" multiple hidden>
 
 <script src="vendor/pdf-lib.min.js"></script>
 <script type="module" src="js/app.js"></script>

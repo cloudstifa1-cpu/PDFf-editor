@@ -15,7 +15,7 @@ $('#readerBigger').onclick = () => setSize(size + 2);
 $('#readerClose').onclick = () => { runId++; $('#reader').hidden = true; $('#readerText').innerHTML = ''; };
 
 /** Turns one page's text pieces into paragraphs. */
-function paragraphs(items) {
+export function paragraphs(items) {
   const lines = [];
   let cur = null;
   for (const it of items) {
@@ -27,16 +27,16 @@ function paragraphs(items) {
   }
   if (cur) lines.push(cur);
   const paras = [];
-  let p = '';
+  let p = null;
   lines.forEach((ln, i) => {
     const t = ln.text.trim();
     const prev = lines[i - 1];
     const gap = prev ? Math.abs(prev.y - ln.y) : 0;
-    if (!t || (prev && gap > prev.h * 1.7)) { if (p) paras.push(p); p = ''; }
+    if (!t || (prev && (gap > prev.h * 1.7 || Math.abs(ln.h - prev.h) > prev.h * 0.25))) { if (p) paras.push(p); p = null; }
     if (!t) return;
-    if (!p) p = t;
-    else if (p.endsWith('-')) p = p.slice(0, -1) + t;   // join words split across lines
-    else p += ' ' + t;
+    if (!p) p = { text: t, size: ln.h };
+    else if (p.text.endsWith('-')) p.text = p.text.slice(0, -1) + t;   // join words split across lines
+    else p.text += ' ' + t;
   });
   if (p) paras.push(p);
   return paras;
@@ -53,7 +53,7 @@ export async function openReader() {
     if (id !== runId) return;               // closed
     const P = S.pages[n - 1];
     const tc = P.text || await P.page.getTextContent();
-    let paras = paragraphs(tc.items);
+    let paras = paragraphs(tc.items).map(p => p.text);
     if (!paras.length && S.ocr[n]) paras = [S.ocr[n].map(w => w.text).join(' ')];
     const sec = document.createElement('section');
     sec.id = 'r' + n;

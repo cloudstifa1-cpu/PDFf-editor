@@ -51,8 +51,8 @@ export function wireSwatches(el) {
   return name => el.querySelector(`.swatches[data-name="${name}"] .swatch.on`)?.dataset.color;
 }
 
-export function downloadBytes(bytes, name) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+export function downloadBytes(bytes, name, type = 'application/pdf') {
+  const url = URL.createObjectURL(bytes instanceof Blob ? bytes : new Blob([bytes], { type }));
   const a = document.createElement('a');
   a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
@@ -84,4 +84,33 @@ export async function loadImageFile(file, maxSide = 1600, type = 'image/jpeg') {
     c.width = 0;
     return { dataUrl, w, h };
   } finally { URL.revokeObjectURL(url); }
+}
+
+export const fmtSize = n => n < 1024 * 1024 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+
+const scripts = {};
+/** Loads a library file only when it's first needed (keeps the app light on low-memory phones). */
+export function loadScript(path) {
+  return scripts[path] ||= new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = new URL('../' + path, import.meta.url).href;
+    s.onload = res; s.onerror = () => { delete scripts[path]; rej(new Error('Could not load ' + path + ' (check internet the first time)')); };
+    document.head.appendChild(s);
+  });
+}
+
+/** Shows a finished file with Save and Share buttons. */
+export function deliver(data, name, type, note = '') {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
+  const body = openSheet(`<h2>File ready</h2><p><b>${esc(name)}</b><br>${fmtSize(blob.size)}</p>${note ? `<p>${note}</p>` : ''}
+    <div class="actions"><button class="btn primary" id="dl">💾 Save</button><button class="btn" id="sh">📤 Share</button>
+    <button class="btn" id="x">Close</button></div>`);
+  $('#dl', body).onclick = () => { downloadBytes(blob, name); toast('Saved to Downloads.'); closeSheet(); };
+  $('#x', body).onclick = closeSheet;
+  $('#sh', body).onclick = async () => {
+    const file = new File([blob], name, { type: blob.type || type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); closeSheet(); } catch (e) { if (e.name !== 'AbortError') toast('Share failed.'); }
+    } else toast('Sharing this file type is not supported here. Use Save.', 3500);
+  };
 }

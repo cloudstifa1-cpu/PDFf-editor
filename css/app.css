@@ -89,3 +89,25 @@ body.drawing .page svg.overlay { touch-action: none; }
 .spinner { width: 54px; height: 54px; border: 6px solid var(--panel); border-top-color: var(--accent);
   border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Build 2 */
+.sheet-body.tall { max-height: 94vh; }
+.sheet-body p { margin: 6px 0; }
+.sheet-body small { font-size: 14px; }
+.org-bar { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; top: -16px; background: var(--bg); padding: 6px 0; z-index: 1; }
+.org-bar .btn { padding: 8px 10px; font-size: 15px; }
+.org-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin: 10px 0; }
+.org-card { position: relative; background: var(--panel); border: 3px solid var(--line); border-radius: 8px; padding: 6px;
+  aspect-ratio: 3 / 4; display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--text); }
+.org-card.on { border-color: var(--sel); box-shadow: 0 0 0 3px var(--sel); background: #002a30; }
+.org-card img { max-width: 100%; max-height: 100%; background: #fff; transition: transform .2s; }
+.org-card img:not([src]) { width: 70%; height: 80%; }
+.org-card span { position: absolute; bottom: 4px; right: 4px; background: var(--accent); color: #000; font-weight: 800;
+  border-radius: 6px; padding: 0 6px; font-size: 14px; }
+.org-blank { width: 70%; height: 80%; background: #fff; color: #000; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.c-row { display: flex; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.c-row span { flex: 1; overflow-wrap: anywhere; font-weight: 600; }
+.opt-group { border: 2px solid var(--line); border-radius: 10px; padding: 10px; margin: 10px 0; }
+.opt-group h3 { margin: 0 0 6px; font-size: 17px; color: var(--accent); }
+.radio { display: flex; align-items: center; gap: 10px; font-weight: 600; margin: 8px 0; }
+.radio input { width: 24px; height: 24px; flex: 0 0 auto; }
