@@ -92,12 +92,18 @@ async function closeDoc() {
 
 // Phone Back button: closes whatever is open first, then the PDF, instead of leaving the app
 window.addEventListener('popstate', async () => {
-  const keep = () => history.pushState({ doc: 1 }, '');
-  if (!$('#sheet').hidden) { closeSheet(); return keep(); }
-  if (!$('#menu').hidden) { $('#menu').hidden = true; return keep(); }
-  if (!$('#reader').hidden) { $('#readerClose').click(); return keep(); }
-  if (S.pdf && !(await closeDoc())) keep();
+  if (!$('#sheet').hidden) return closeSheet();
+  if (!$('#menu').hidden) return ($('#menu').hidden = true);
+  if (!$('#reader').hidden) return $('#readerClose').click();
+  if (S.pdf) await closeDoc();
 });
+// Browsers ignore a "back" step unless it's added during a tap, so add it on taps while something is open.
+const armBack = () => {
+  if (history.state?.doc) return;
+  if (S.pdf || !$('#sheet').hidden || !$('#menu').hidden || !$('#reader').hidden) history.pushState({ doc: 1 }, '');
+};
+document.addEventListener('pointerup', () => setTimeout(armBack, 0), true);
+document.addEventListener('click', () => setTimeout(armBack, 0), true);
 
 export async function loadBytes(bytes, name, { keepAnnots = false, newTab = false, password = null } = {}) {
   busy('Opening…');
@@ -143,7 +149,6 @@ export async function loadBytes(bytes, name, { keepAnnots = false, newTab = fals
     viewer.scrollTop = 0;
     updateUndo();
     renderTabs();
-    if (!history.state?.doc) history.pushState({ doc: 1 }, '');
     if (encrypted) toast('Locked PDF opened. Saved copies will be unlocked — use 🔒 Password to lock again.', 4500);
   } catch (e) {
     console.error(e);
@@ -210,9 +215,11 @@ window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTi
 
 function setZoom(z) {
   const frac = viewer.scrollTop / Math.max(1, viewer.scrollHeight);
+  const fracX = (viewer.scrollLeft + viewer.clientWidth / 2) / Math.max(1, viewer.scrollWidth);
   S.zoom = Math.max(0.5, Math.min(4, z));
   layout();
   viewer.scrollTop = frac * viewer.scrollHeight;
+  viewer.scrollLeft = fracX * viewer.scrollWidth - viewer.clientWidth / 2;
   toast(Math.round(S.zoom * 100) + '%', 900);
 }
 $('#zoomIn').onclick = () => setZoom(S.zoom * 1.25);

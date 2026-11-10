@@ -1,6 +1,6 @@
 // Offline support. App files: try network first (so updates show up), fall back to cache.
 // Big library files: cache first (they never change for a given version).
-const CACHE = 'pdf-editor-v4';
+const CACHE = 'pdf-editor-v5';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',
   'js/app.js', 'js/ui.js', 'js/export.js', 'js/forms.js', 'js/reader.js', 'js/ocr.js', 'js/create.js', 'js/signature.js',

@@ -28,8 +28,9 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 #viewer { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
 #welcome { text-align: center; padding: 40px 16px; }
 #welcome h1 { color: var(--accent); }
-#pages { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 0 24px; }
-.page { position: relative; background: #fff; box-shadow: 0 0 0 1px var(--line); }
+/* as wide as the widest page, so zoomed pages can be scrolled to both edges */
+#pages { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 12px 8px 24px; width: max-content; min-width: 100%; box-sizing: border-box; }
+.page { flex: 0 0 auto; margin: 0 auto; position: relative; background: #fff; box-shadow: 0 0 0 1px var(--line); }
 .page canvas { position: relative; display: block; width: 100%; height: 100%; }
 .page .label { position: absolute; left: 50%; top: 40%; transform: translateX(-50%); color: #000; font-weight: 700; }
 .page svg.overlay { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-x pan-y; }
