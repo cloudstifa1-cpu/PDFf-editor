@@ -75,6 +75,30 @@ $('#tabs').addEventListener('click', e => {
   const t = e.target.closest('[data-i]'); if (t) switchTab(+t.dataset.i);
 });
 
+/** Closes the PDF (or its tab) and goes back to the start screen. Returns true if fully closed. */
+async function closeDoc() {
+  if (!S.pdf) return true;
+  if (tabs.length > 1) { await closeTab(active); return false; }
+  if (S.dirty && !confirm('You have unsaved changes. Close without saving?')) return false;
+  S.pages.forEach(unrender); await S.pdf.destroy();
+  Object.assign(S, { pdf: null, bytes: null, name: '', pages: [], annots: [], ocr: {}, undo: [], dirty: false,
+    chat: [], aiDoc: null, password: null, encrypted: false, selected: null });
+  tabs.length = 0; active = -1;
+  pagesEl.innerHTML = ''; $('#docName').textContent = 'No file open';
+  $('#welcome').hidden = false; $('#tools').hidden = true; $('#pageInfo').hidden = true;
+  setTool('hand'); updateUndo(); renderTabs();
+  return true;
+}
+
+// Phone Back button: closes whatever is open first, then the PDF, instead of leaving the app
+window.addEventListener('popstate', async () => {
+  const keep = () => history.pushState({ doc: 1 }, '');
+  if (!$('#sheet').hidden) { closeSheet(); return keep(); }
+  if (!$('#menu').hidden) { $('#menu').hidden = true; return keep(); }
+  if (!$('#reader').hidden) { $('#readerClose').click(); return keep(); }
+  if (S.pdf && !(await closeDoc())) keep();
+});
+
 export async function loadBytes(bytes, name, { keepAnnots = false, newTab = false, password = null } = {}) {
   busy('Opening…');
   try {
@@ -119,6 +143,7 @@ export async function loadBytes(bytes, name, { keepAnnots = false, newTab = fals
     viewer.scrollTop = 0;
     updateUndo();
     renderTabs();
+    if (!history.state?.doc) history.pushState({ doc: 1 }, '');
     if (encrypted) toast('Locked PDF opened. Saved copies will be unlocked — use 🔒 Password to lock again.', 4500);
   } catch (e) {
     console.error(e);
@@ -590,6 +615,7 @@ const ACTIONS = {
   layout: () => need() && lazy('./layout.js', 'openLayout'),
   pdfimages: () => need() && lazy('./pdfimages.js', 'openPdfImages'),
   close: () => {},
+  closepdf: () => closeDoc(),
 };
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
