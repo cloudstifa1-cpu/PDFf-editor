@@ -211,7 +211,7 @@ export function openCombine() {
       busy('Finishing…');
       const out = await doc.save();
       busy(false);
-      await loadBytes(out, 'Combined.pdf');
+      await loadBytes(out, 'Combined.pdf', { newTab: true });
       S.dirty = true;
       toast(`Combined ${list.length} files. Save or Share to keep it.`);
     } catch (e) {

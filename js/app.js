@@ -33,20 +33,66 @@ const viewer = $('#viewer'), pagesEl = $('#pages');
 
 /* ---------------- Opening & rendering ---------------- */
 
-export async function loadBytes(bytes, name, { keepAnnots = false } = {}) {
+/* ---------------- Tabs (desktop only: several PDFs open; only the one you see stays loaded) ---------------- */
+
+export const isDesktop = () => matchMedia('(min-width: 900px)').matches;
+const tabs = [];   // saved state of each tab; the active tab's entry is null (its state lives in S)
+let active = -1;
+const snapshot = () => ({ bytes: S.bytes, name: S.name, password: S.password, annots: S.annots, ocr: S.ocr, undo: S.undo,
+  dirty: S.dirty, zoom: S.zoom, chat: S.chat, scroll: viewer.scrollTop / Math.max(1, viewer.scrollHeight) });
+
+function renderTabs() {
+  const bar = $('#tabs');
+  bar.hidden = tabs.length < 2;
+  if (bar.hidden) return;
+  bar.innerHTML = tabs.map((t, i) => {
+    const on = i === active, name = on ? S.name : t.name, dirty = on ? S.dirty : t.dirty;
+    return `<div class="tab${on ? ' on' : ''}" data-i="${i}" title="${esc(name)}"><span>${dirty ? '● ' : ''}${esc(name)}</span><button class="tab-x" data-x="${i}" title="Close">✖</button></div>`;
+  }).join('') + '<button class="btn icon" id="tabNew" title="Open another PDF">+</button>';
+}
+async function switchTab(i) {
+  if (i === active || !tabs[i]) return;
+  tabs[active] = snapshot();
+  const t = tabs[i];
+  active = i;
+  Object.assign(S, { annots: t.annots, ocr: t.ocr, undo: t.undo, zoom: t.zoom, chat: t.chat });
+  await loadBytes(t.bytes, t.name, { keepAnnots: true, password: t.password });
+  S.dirty = t.dirty; tabs[i] = null;
+  updateUndo();
+  viewer.scrollTop = t.scroll * viewer.scrollHeight;
+}
+async function closeTab(i) {
+  const t = i === active ? { dirty: S.dirty, name: S.name } : tabs[i];
+  if (t.dirty && !confirm(`"${t.name}" has unsaved changes. Close it anyway?`)) return;
+  if (i === active) await switchTab(i > 0 ? i - 1 : 1);
+  tabs.splice(i, 1);
+  if (active > i) active--;
+  renderTabs();
+}
+$('#tabs').addEventListener('click', e => {
+  if (e.target.id === 'tabNew') return ACTIONS.open();
+  const x = e.target.closest('[data-x]'); if (x) return closeTab(+x.dataset.x);
+  const t = e.target.closest('[data-i]'); if (t) switchTab(+t.dataset.i);
+});
+
+export async function loadBytes(bytes, name, { keepAnnots = false, newTab = false, password = null } = {}) {
   busy('Opening…');
   try {
-    if (S.pdf) { S.pages.forEach(unrender); await S.pdf.destroy(); }
-    let encrypted = false, pw = null;
-    const task = pdfjsLib.getDocument({ data: bytes.slice(0) });
+    let encrypted = !!password, pw = password;
+    const task = pdfjsLib.getDocument({ data: bytes.slice(0), ...(password ? { password } : {}) });
     task.onPassword = (cb, reason) => {
       encrypted = true;
       const p = prompt(reason === 2 ? 'Wrong password. Try again:' : 'This PDF is locked. Password:');
       if (p === null) task.destroy(); else { pw = p; cb(p); }
     };
-    S.pdf = await task.promise;
+    const pdf = await task.promise;
+    if (newTab && S.pdf && isDesktop()) { tabs[active] = snapshot(); active = tabs.length; tabs.push(null); }
+    if (active < 0) { active = 0; tabs.push(null); }
+    if (S.pdf) { S.pages.forEach(unrender); await S.pdf.destroy(); }
+    S.pdf = pdf;
+    S.aiDoc = null;
     S.bytes = bytes; S.name = name; S.encrypted = encrypted; S.password = pw;
-    if (!keepAnnots) { S.annots = []; S.ocr = {}; S.undo = []; S.dirty = false; }
+    if (!keepAnnots) { S.annots = []; S.ocr = {}; S.undo = []; S.dirty = false; S.chat = []; }
     S.selected = null;
     $('#docName').textContent = name;
     $('#welcome').hidden = true; $('#tools').hidden = false; $('#pageInfo').hidden = false;
@@ -72,6 +118,7 @@ export async function loadBytes(bytes, name, { keepAnnots = false } = {}) {
     layout();
     viewer.scrollTop = 0;
     updateUndo();
+    renderTabs();
     if (encrypted) toast('Locked PDF opened. Saved copies will be unlocked — use 🔒 Password to lock again.', 4500);
   } catch (e) {
     console.error(e);
@@ -204,7 +251,7 @@ function pushUndo() {
   if (S.undo.length > 30) S.undo.shift();
   S.dirty = true; updateUndo();
 }
-function updateUndo() { $('#btnUndo').disabled = !S.undo.length; }
+function updateUndo() { $('#btnUndo').disabled = !S.undo.length; if (tabs.length > 1) renderTabs(); }
 $('#btnUndo').onclick = () => {
   if (!S.undo.length) return;
   S.annots = JSON.parse(S.undo.pop());
@@ -256,9 +303,12 @@ $('#tools').addEventListener('click', async e => {
 
 $('#fileImg').addEventListener('change', async e => {
   const f = e.target.files[0];
+  if (S.tool !== 'image') return;
   if (!f) return setTool('hand');
-  const isPng = f.type === 'image/png';
-  S.pending = await loadImageFile(f, 1600, isPng ? 'image/png' : 'image/jpeg');
+  const { editImage } = await import('./imgedit.js');
+  const r = await editImage(f, { note: 'Fix it up first if you like, then tap ✔.' });
+  if (!r) return setTool('hand');
+  S.pending = { dataUrl: r.dataUrl, w: r.w, h: r.h };
   toast('Tap where to place the image.');
 });
 
@@ -421,7 +471,14 @@ function imageSheet(a) {
   const body = openSheet(`<h2>Image / signature</h2>
     <label>Size: <b id="sv">${Math.round(a.w)}</b></label>
     <input type="range" id="s" min="20" max="${Math.round(S.pages[a.page - 1].w)}" value="${Math.round(a.w)}">
+    <button class="btn row" id="ed">✏️ Edit picture (crop, turn, colours)</button>
     <div class="actions"><button class="btn danger" id="del">Delete</button><button class="btn primary" id="ok">Done</button></div>`);
+  $('#ed', body).onclick = async () => {
+    const { editImage } = await import('./imgedit.js');
+    const r = await editImage(a.src);
+    if (!r) return;
+    pushUndo(); a.src = r.dataUrl; a.h = a.w * r.h / r.w; redrawPage(a.page);
+  };
   const s = $('#s', body), snap = JSON.stringify(S.annots), ratio = a.h / a.w;
   const cx = a.x + a.w / 2, cy = a.y + a.h / 2;
   s.oninput = () => {
@@ -527,6 +584,11 @@ const ACTIONS = {
   convert: () => need() && lazy('./convert.js', 'openConvert'),
   compress: () => need() && lazy('./compress.js', 'openCompress'),
   protect: () => need() && lazy('./compress.js', 'openProtect'),
+  ai: () => need() && lazy('./ai.js', 'openAI'),
+  templates: () => lazy('./templates.js', 'openTemplates'),
+  stamps: () => need() && lazy('./templates.js', 'openStamps'),
+  layout: () => need() && lazy('./layout.js', 'openLayout'),
+  pdfimages: () => need() && lazy('./pdfimages.js', 'openPdfImages'),
   close: () => {},
 };
 document.addEventListener('click', e => {
@@ -540,11 +602,11 @@ $('#menu').addEventListener('click', e => { if (e.target.id === 'menu') $('#menu
 
 $('#filePdf').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
-  if (S.dirty && !confirm('You have unsaved changes. Open a new file anyway?')) return;
+  if (!(isDesktop() && S.pdf) && S.dirty && !confirm('You have unsaved changes. Open a new file anyway?')) return;
   setTool('hand');
-  await loadBytes(new Uint8Array(await f.arrayBuffer()), f.name);
+  await loadBytes(new Uint8Array(await f.arrayBuffer()), f.name, { newTab: true });
 });
 
-window.addEventListener('beforeunload', e => { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (S.dirty || tabs.some(t => t?.dirty)) { e.preventDefault(); e.returnValue = ''; } });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -8,7 +8,7 @@ const hex = h => {
 };
 
 /** Removes characters the built-in Helvetica font cannot draw (it only knows Western letters). */
-function safeText(font, str, cache) {
+export function safeText(font, str, cache = new Map()) {
   let out = '';
   for (const ch of str) {
     if (!cache.has(ch)) { try { font.encodeText(ch); cache.set(ch, true); } catch { cache.set(ch, false); } }

@@ -28,8 +28,18 @@ A private PDF app that runs in the browser on phones, desktops and laptops. File
 - Word "editable text" keeps paragraphs and headings, not exact layout or tables. Excel works best on simple tables.
 - Smart compress only shrinks normal JPEG photos; other images are left alone.
 
-## Next
-- **Build 3:** AI assistant (questions, summaries, writing), templates, layouts, image editing
+## Build 3 (done)
+- ✨ AI Assistant: ask questions about the open PDF, summarize, key facts, explain simply, write new content. Answers can be copied, added to the page, or saved as a PDF. Scanned pages are sent as pictures so the AI can read them.
+  - Works with the user's own **Gemini** (free key) or **Claude** key, saved only on that device. The assistant is instructed to only help with the open document and to ignore instructions hidden inside it.
+- Templates: letter, invoice (adds up totals and tax), resume, meeting notes, checklist, flyer, lined paper, grid paper; "Write this with AI" on long text boxes
+- Page numbers, header, footer, watermark
+- Page layout: paper size, margins, crop, 2 or 4 pages per sheet
+- Picture editor (crop, turn, flip, brightness, contrast, colour, black & white) for added pictures, and for pictures already inside a PDF (edit, replace, remove)
+- Desktop tabs: several PDFs open on wide screens; only the visible one stays loaded. Phones stay one-at-a-time.
+
+### Known limits
+- The AI key is stored in the browser on that device. The document text is sent to Google or Anthropic when you ask something.
+- Editing pictures inside a PDF works on normal photos; some special image types can only be replaced or removed.
 
 ## Run locally
 Any static web server: `python3 -m http.server` then open http://localhost:8000.

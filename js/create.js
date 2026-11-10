@@ -1,11 +1,12 @@
 // Create a new PDF: blank pages, or from photos (camera or gallery).
-import { S, loadBytes } from './app.js';
+import { S, loadBytes, isDesktop } from './app.js';
 import { $, openSheet, closeSheet, toast, busy, loadImageFile, dataUrlToBytes } from './ui.js';
 
 const SIZES = { letter: [612, 792], a4: [595.28, 841.89] };
 
 export function openCreate() {
   const body = openSheet(`<h2>Create a PDF</h2>
+    <button class="btn row" data-act="templates">📄 From a template (letter, invoice, resume…)</button>
     <button class="btn row" id="photos">📷 From photos or camera (scan paper)</button>
     <label>Or blank pages</label>
     <select id="size"><option value="letter">Letter (US)</option><option value="a4">A4</option></select>
@@ -19,7 +20,7 @@ export function openCreate() {
     if (!(await okToReplace())) return;
     const doc = await PDFLib.PDFDocument.create();
     for (let i = 0; i < n; i++) doc.addPage(size);
-    await loadBytes(await doc.save(), 'New PDF.pdf');
+    await loadBytes(await doc.save(), 'New PDF.pdf', { newTab: true });
     S.dirty = true;
   };
   $('#photos', body).onclick = () => {
@@ -32,7 +33,7 @@ export function openCreate() {
 }
 
 async function okToReplace() {
-  return !S.dirty || confirm('You have unsaved changes. Replace them with a new PDF?');
+  return !S.dirty || isDesktop() || confirm('You have unsaved changes. Replace them with a new PDF?');
 }
 
 async function fromPhotos(files) {
@@ -45,7 +46,7 @@ async function fromPhotos(files) {
       await addImagePage(doc, files[i]);
     }
     busy(false);
-    await loadBytes(await doc.save(), 'Scan.pdf');
+    await loadBytes(await doc.save(), 'Scan.pdf', { newTab: true });
     S.dirty = true;
     toast('PDF made. Use ⋮ → OCR to turn the photos into searchable text.', 4000);
   } catch (e) {
