@@ -84,11 +84,28 @@ async function send({ system, docParts = [], messages, onText }) {
       contents.push({ role: 'model', parts: [{ text: 'I have read the document. What would you like to know?' }] });
     }
     messages.forEach(m => contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] }));
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
-      method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents }),
-    });
-    if (!res.ok) throw new Error(await friendlyError(res, p));
+    const body = JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents });
+    const call = m => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:streamGenerateContent?alt=sse`, {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, body });
+    // Free Gemini models are often overloaded: wait and retry, then try other Gemini models (each has its own free limit).
+    const busy = s => s === 429 || s === 500 || s === 503 || s === 529;
+    let res = await call(model), used = model;
+    if (busy(res.status) && res.status !== 429) { await new Promise(r => setTimeout(r, 2500)); res = await call(model); }
+    if (busy(res.status)) {
+      let list = [];
+      try { list = JSON.parse(ls.get('models.gemini') || 'null') || await listModels('gemini', key); ls.set('models.gemini', JSON.stringify(list.slice(0, 30))); } catch {}
+      const others = [...list.filter(n => /flash/.test(n) && n !== model), ...list.filter(n => /pro/.test(n) && n !== model)].slice(0, 4);
+      for (const m of others) {
+        onText?.(`(${model} is busy — trying ${m}…)`);
+        res = await call(m); used = m;
+        if (!busy(res.status)) break;
+      }
+    }
+    if (!res.ok) {
+      if (busy(res.status)) throw new Error('Google\'s free Gemini models are all busy right now. Wait a minute and tap Send again.');
+      throw new Error(await friendlyError(res, p));
+    }
+    if (used !== model) toast(`${model} was busy, so ${used} answered.`, 4000);
     return readStream(res, j => (j.candidates?.[0]?.content?.parts || []).filter(x => !x.thought).map(x => x.text || '').join(''), onText);
   }
   const msgs = [];
@@ -306,6 +323,7 @@ function openSettings(first = false) {
       if (!list.length) throw new Error('No usable models found for this key.');
       const saved = ls.get('model.' + prov.value);
       fill(list, saved && list.includes(saved) ? saved : pickDefault(prov.value, list));
+      ls.set('models.' + prov.value, JSON.stringify(list.slice(0, 30)));
       toast(`Key works. ${list.length} models found.`);
     } catch (e) { toast(e.message, 5000); }
     finally { busy(false); }
