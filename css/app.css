@@ -139,3 +139,4 @@ body.drawing .page svg.overlay { touch-action: none; }
 #ieCrop i[data-h=sw] { left: -13px; bottom: -13px; } #ieCrop i[data-h=se] { right: -13px; bottom: -13px; }
 .ie-wrap { overflow: hidden; }
 body:has(#tabs:not([hidden])) #pageInfo { top: 112px; }
+.ver { text-align: center; font-weight: 700; color: var(--accent); }
