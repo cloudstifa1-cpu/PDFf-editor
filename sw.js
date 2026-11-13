@@ -1,6 +1,6 @@
 // Offline support. App files: try network first (so updates show up), fall back to cache.
 // Big library files: cache first (they never change for a given version).
-const CACHE = 'pdf-editor-v7';
+const CACHE = 'pdf-editor-v8';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',
   'js/app.js', 'js/ui.js', 'js/export.js', 'js/forms.js', 'js/reader.js', 'js/ocr.js', 'js/create.js', 'js/signature.js',
@@ -34,7 +34,8 @@ self.addEventListener('fetch', e => {
       if (res.ok) cache.put(e.request, res.clone());
       return res;
     } catch {
-      return (await cache.match(e.request)) || (await cache.match('index.html'));
+      return (await cache.match(e.request, { ignoreSearch: true }))
+        || (e.request.mode === 'navigate' ? await cache.match('index.html') : Response.error());
     }
   })());
 });

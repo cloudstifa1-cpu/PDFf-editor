@@ -594,8 +594,17 @@ async function share() {
 
 const need = () => S.pdf ? true : (toast('Open a PDF first.'), false);
 async function lazy(file, fn) {
-  try { (await import(file))[fn](); }
-  catch (e) { console.error(e); toast('Could not start that tool: ' + (e.message || e), 4000); }
+  let mod;
+  try { mod = await import(file); }
+  catch {
+    try { mod = await import(file + '?retry=' + Date.now()); }   // one more try (weak signal)
+    catch (e) {
+      console.error(e);
+      return toast(navigator.onLine ? 'Could not load that tool — the internet connection dropped. Tap it again.'
+        : "You're offline. Connect to the internet once so this tool can download.", 5000);
+    }
+  }
+  try { mod[fn](); } catch (e) { console.error(e); toast('Could not start that tool: ' + (e.message || e), 4000); }
 }
 
 /** Locks marks onto the pages before tools that rebuild the file. Returns false if user cancels. */
