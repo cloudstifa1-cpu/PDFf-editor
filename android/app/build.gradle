@@ -1,0 +1,46 @@
+plugins { id 'com.android.application' }
+
+// The web app (index.html, js, css, vendor...) lives at the top of the repo; copy it into the APK.
+def webOut = layout.buildDirectory.dir('webassets')
+tasks.register('copyWeb', Copy) {
+    from(rootProject.file('..')) {
+        include 'index.html', 'manifest.webmanifest', 'css/**', 'js/**', 'vendor/**', 'icons/**'
+    }
+    // Android's packer strips ".gz" from file names, so store those files as ".gz.bin" (served back as ".gz")
+    rename { String n -> n.endsWith('.gz') ? n + '.bin' : n }
+    into webOut.map { it.dir('www') }
+}
+preBuild.dependsOn copyWeb
+
+android {
+    namespace 'com.everlife.pdfeditor'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.everlife.pdfeditor'
+        minSdk 29
+        targetSdk 34
+        versionCode 1
+        versionName '3.5'
+    }
+    signingConfigs {
+        // Fixed key so each new APK installs as an update over the old one.
+        // Make a separate, private key before publishing on Google Play.
+        sideload {
+            storeFile file('sideload.keystore')
+            storePassword 'pdfeditor'
+            keyAlias 'pdfeditor'
+            keyPassword 'pdfeditor'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.sideload }
+        debug { signingConfig signingConfigs.sideload }
+    }
+    sourceSets { main { assets.srcDirs += [webOut.get().asFile] } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    lint { abortOnError false; checkReleaseBuilds false }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.13.1'
+}

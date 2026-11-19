@@ -1,7 +1,7 @@
 // PDF Editor — main viewer + annotation tools. Everything runs locally in the browser.
 import * as pdfjsLib from '../vendor/pdf.min.mjs';
 import { $, toast, busy, openSheet, closeSheet, esc, swatchesHtml, wireSwatches,
-         downloadBytes, loadImageFile } from './ui.js';
+         downloadBytes, loadImageFile, nativeShare, native } from './ui.js';
 import { buildPdf } from './export.js';
 import { openForms } from './forms.js';
 import { openReader } from './reader.js';
@@ -580,11 +580,12 @@ async function getOutput() {
 async function save() {
   const bytes = await getOutput(); if (!bytes) return;
   downloadBytes(bytes, outName());
-  S.dirty = false; toast('Saved to Downloads.');
+  S.dirty = false; if (!native) toast('Saved to Downloads.'); renderTabs();
 }
 
 async function share() {
   const bytes = await getOutput(); if (!bytes) return;
+  if (await nativeShare(new Blob([bytes], { type: 'application/pdf' }), outName(), 'application/pdf')) return;
   const file = new File([bytes], outName(), { type: 'application/pdf' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: file.name }); }
@@ -651,4 +652,23 @@ $('#filePdf').addEventListener('change', async e => {
 
 window.addEventListener('beforeunload', e => { if (S.dirty || tabs.some(t => t?.dirty)) { e.preventDefault(); e.returnValue = ''; } });
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && !native) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// A PDF opened from another app ("Open with" or "Share") inside the Android app
+async function openIncoming() {
+  if (!native) return;
+  let info = null;
+  try { info = JSON.parse(native.getIncoming() || 'null'); } catch {}
+  if (!info) return;
+  if (!(isDesktop() && S.pdf) && S.dirty && !confirm('You have unsaved changes. Open the new file anyway?')) return;
+  try {
+    busy('Opening…');
+    const res = await fetch(info.url);
+    if (!res.ok) throw new Error('the other app did not hand over the file');
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    setTool('hand');
+    await loadBytes(bytes, info.name || 'Document.pdf', { newTab: true });
+  } catch (e) { busy(false); toast('Could not open that file: ' + (e.message || e), 4500); }
+}
+window.onIncomingFile = openIncoming;
+openIncoming();

@@ -51,7 +51,25 @@ export function wireSwatches(el) {
   return name => el.querySelector(`.swatches[data-name="${name}"] .swatch.on`)?.dataset.color;
 }
 
+/** Present when running inside the Android app (APK). */
+export const native = window.AndroidBridge || null;
+const toB64 = blob => new Promise((res, rej) => {
+  const fr = new FileReader(); fr.onload = () => res(fr.result.split(',')[1]); fr.onerror = rej; fr.readAsDataURL(blob);
+});
+/** Shares a file through Android's Share menu. Returns false when not in the Android app. */
+export async function nativeShare(blob, name, type) {
+  if (!native) return false;
+  const msg = native.shareFile(name, blob.type || type, await toB64(blob));
+  if (msg) toast(msg, 4000);
+  return true;
+}
+
 export function downloadBytes(bytes, name, type = 'application/pdf') {
+  if (native) {   // Android app: save straight into Downloads
+    const blob = bytes instanceof Blob ? bytes : new Blob([bytes], { type });
+    toB64(blob).then(b => toast(native.saveFile(name, blob.type || type, b), 3500)).catch(e => toast('Could not save: ' + e.message, 4000));
+    return;
+  }
   const url = URL.createObjectURL(bytes instanceof Blob ? bytes : new Blob([bytes], { type }));
   const a = document.createElement('a');
   a.href = url; a.download = name;
@@ -105,9 +123,10 @@ export function deliver(data, name, type, note = '') {
   const body = openSheet(`<h2>File ready</h2><p><b>${esc(name)}</b><br>${fmtSize(blob.size)}</p>${note ? `<p>${note}</p>` : ''}
     <div class="actions"><button class="btn primary" id="dl">💾 Save</button><button class="btn" id="sh">📤 Share</button>
     <button class="btn" id="x">Close</button></div>`);
-  $('#dl', body).onclick = () => { downloadBytes(blob, name); toast('Saved to Downloads.'); closeSheet(); };
+  $('#dl', body).onclick = () => { downloadBytes(blob, name); if (!native) toast('Saved to Downloads.'); closeSheet(); };
   $('#x', body).onclick = closeSheet;
   $('#sh', body).onclick = async () => {
+    if (await nativeShare(blob, name, type)) return closeSheet();
     const file = new File([blob], name, { type: blob.type || type });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: name }); closeSheet(); } catch (e) { if (e.name !== 'AbortError') toast('Share failed.'); }
