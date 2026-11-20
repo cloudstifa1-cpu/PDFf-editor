@@ -141,3 +141,5 @@ body.drawing .page svg.overlay { touch-action: none; }
 .ie-wrap { overflow: hidden; }
 body:has(#tabs:not([hidden])) #pageInfo { top: 112px; }
 .ver { text-align: center; font-weight: 700; color: var(--accent); }
+/* Touchscreens zoom by pinching, so hide the + / − buttons there (kept for mouse users) */
+@media (pointer: coarse) { #zoomIn, #zoomOut { display: none; } }

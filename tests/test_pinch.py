@@ -56,6 +56,12 @@ async def main():
             after = await pg.evaluate('document.querySelectorAll(".ann").length')
             check('pinching with Draw on does not draw a line', before == after, f'{before} -> {after}')
 
+            check('+/- buttons hidden on a touchscreen', not await pg.is_visible('#zoomIn') and not await pg.is_visible('#zoomOut'))
+            check('page number still shown', await pg.is_visible('#pageNum'))
+            desk = await (await b.new_context(viewport={'width': 1200, 'height': 800})).new_page()
+            await desk.goto(f'http://localhost:{PORT}/'); await desk.set_input_files('#filePdf', SAMPLE); await desk.wait_for_selector('.page canvas')
+            check('+/- buttons still there with a mouse (desktop)', await desk.is_visible('#zoomIn') and await desk.is_visible('#zoomOut'))
+
             check('no page errors', not errs, str(errs))
             await b.close()
     finally:
