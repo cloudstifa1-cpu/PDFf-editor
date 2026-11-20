@@ -222,6 +222,40 @@ function setZoom(z) {
   viewer.scrollLeft = fracX * viewer.scrollWidth - viewer.clientWidth / 2;
   toast(Math.round(S.zoom * 100) + '%', 900);
 }
+
+/* Pinch to zoom: spread two fingers = bigger, pinch together = smaller, centred between your fingers. */
+let pinch = null;
+const fingerGap = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+viewer.addEventListener('touchstart', e => {
+  if (e.touches.length !== 2 || !S.pages.length) return;
+  const r = viewer.getBoundingClientRect();
+  const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+  const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+  pinch = { d0: fingerGap(e.touches), z0: S.zoom, mx, my, cx: viewer.scrollLeft + mx, cy: viewer.scrollTop + my, ratio: 1 };
+  S.pinching = true;
+  pagesEl.style.transformOrigin = `${pinch.cx}px ${pinch.cy}px`;
+}, { passive: true });
+viewer.addEventListener('touchmove', e => {
+  if (!pinch || e.touches.length !== 2) return;
+  e.preventDefault();   // stop the browser zooming the whole screen
+  const z = Math.max(0.5, Math.min(4, pinch.z0 * fingerGap(e.touches) / pinch.d0));
+  pinch.ratio = z / pinch.z0;
+  pagesEl.style.transform = `scale(${pinch.ratio})`;   // quick preview while fingers move
+}, { passive: false });
+function endPinch(e) {
+  if (!pinch || e.touches.length >= 2) return;
+  const p = pinch; pinch = null;
+  pagesEl.style.transform = '';
+  setTimeout(() => (S.pinching = false), 80);
+  if (Math.abs(p.ratio - 1) < 0.03) return;
+  S.zoom = p.z0 * p.ratio;
+  layout();   // redraw pages sharp at the new size
+  viewer.scrollLeft = p.cx * p.ratio - p.mx;
+  viewer.scrollTop = p.cy * p.ratio - p.my;
+  toast(Math.round(S.zoom * 100) + '%', 900);
+}
+viewer.addEventListener('touchend', endPinch);
+viewer.addEventListener('touchcancel', endPinch);
 $('#zoomIn').onclick = () => setZoom(S.zoom * 1.25);
 $('#zoomOut').onclick = () => setZoom(S.zoom / 1.25);
 $('#pageNum').onclick = () => {
@@ -379,6 +413,7 @@ function wireOverlay(p) {
 
   svg.addEventListener('pointerdown', e => {
     if (!DRAG_TOOLS.has(S.tool)) return;
+    if (S.pinching || drag) { cancelDrag(); return; }   // second finger = pinch, not drawing
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const [x, y] = ptOf(e, p);
     svg.setPointerCapture(e.pointerId);
@@ -399,8 +434,15 @@ function wireOverlay(p) {
     svg.appendChild(drag.tmp);
   });
 
+  function cancelDrag() {
+    if (!drag) return;
+    drag.tmp?.remove();
+    if (drag.kind === 'move' && drag.moved) { S.annots = JSON.parse(drag.snap); drawAnnots(p); }
+    drag = null;
+  }
   svg.addEventListener('pointermove', e => {
     if (!drag) return;
+    if (S.pinching) return cancelDrag();
     const [x, y] = ptOf(e, p);
     if (drag.kind === 'pen') {
       const last = drag.pts[drag.pts.length - 1];

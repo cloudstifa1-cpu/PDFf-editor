@@ -25,7 +25,8 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 4px; }
 #pageNum { font-weight: 700; min-width: 64px; text-align: center; }
 
-#viewer { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
+#viewer { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+#pages { transition: none; will-change: transform; }
 #welcome { text-align: center; padding: 40px 16px; }
 #welcome h1 { color: var(--accent); }
 /* as wide as the widest page, so zoomed pages can be scrolled to both edges */
